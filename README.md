@@ -14,7 +14,7 @@ PHP / SQL (папка PHP_SQL)
 
 Гостевая книга (task2.php, guestbook.csv)
 
-Калькулятор доставки с кэшированием городов (task3.php, cities_cache.json)
+Калькулятор доставки с кэшированием городов (task3.php, task3.html, cities_cache.json)
 
 Прокси-сервер
 proxy.js — для запросов к внешним сервисам без CORS.
