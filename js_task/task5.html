@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Электронная таблица</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { background: #fafbfc; font-family: Arial,sans-serif; margin: 0; }
+        .main-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .title {
+            text-align: center;
+            font-size: 2.1rem;
+            font-weight: 700;
+            margin: 36px 0 8px 0;
+            letter-spacing: 0.5px;
+        }
+        .table-zone {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 30px 0 0 0;
+            width: auto;
+            min-width: 340px;
+            max-width: 98vw;
+            background: #fff;
+            box-shadow: 0 6px 30px #0001;
+        }
+        th, td {
+            border: 1px solid #333;
+            min-width: 90px;
+            max-width: 240px;
+            height: 42px;
+            text-align: left;
+            padding: 6px 8px;
+            position: relative;
+            background: #fff;
+            word-break: break-word;
+            vertical-align: middle;
+            box-sizing: border-box;
+            transition: background 0.2s;
+            font-size: 1.03rem;
+            line-height: 1.2;
+        }
+        td input {
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            max-width: 100%;
+            min-height: 0;
+            max-height: 100%;
+            font-size: 1.03rem;
+            background: #eaf3ff;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0 8px;
+            display: block;
+            line-height: 1.2;
+            border: none;
+            outline: none;
+        }
+        .ctrl-row {
+            display: flex; gap: 7px; margin: 18px auto 0 auto;
+            justify-content: center;
+        }
+        .ctrl-col {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            position: absolute;
+            left: 100%;
+            top: 7px;
+            margin-left: 18px; /* Отступ справа */
+        }
+        .ctrl-btn {
+            padding: 5px 14px; border: 1px solid #888; background: #f5f6ff;
+            border-radius: 0;
+            font-size: 1rem; cursor: pointer; box-shadow: 0 1px 3px #0001;
+            min-width: 38px;
+        }
+        .ctrl-btn:hover { background: #d6e7ff; }
+        td:active, td:focus-within { background: #edf3ff; }
+        @media (max-width: 800px) {
+            th, td { min-width: 70px; font-size: 0.96rem; height: 34px; padding: 4px 4px; }
+            td input { font-size: 0.96rem; }
+            .ctrl-btn { font-size: 0.95rem; padding: 3px 10px; }
+        }
+        @media (max-width: 540px) {
+            table { font-size: 0.87rem; min-width: 240px;}
+            th, td { min-width: 46px; max-width: 120px; height: 28px; }
+            td input { font-size: 0.87rem; }
+            .ctrl-col { left: 100%; top: 0;}
+        }
+        @media (max-width: 430px) {
+            .ctrl-col { left: unset; right: -2.3rem; }
+            table { min-width: 140px;}
+            th, td { min-width: 30px; }
+        }
+    </style>
+</head>
+<body>
+<div class="main-wrap">
+    <div class="title">Электронная таблица</div>
+    <div class="table-zone">
+        <table id="sheet"></table>
+        <div class="ctrl-col">
+            <button class="ctrl-btn" onclick="addCol()">+</button>
+            <button class="ctrl-btn" onclick="removeCol()">-</button>
+        </div>
+    </div>
+    <div class="ctrl-row">
+        <button class="ctrl-btn" onclick="addRow()">+</button>
+        <button class="ctrl-btn" onclick="removeRow()">-</button>
+    </div>
+</div>
+<script>
+    const LS_KEY = 'spreadsheet-demo-v2';
+    let rows = 5, cols = 6;
+    let data = [];
+
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    function loadTable() {
+        let saved = localStorage.getItem(LS_KEY);
+        if (saved) {
+            let d = JSON.parse(saved);
+            data = d.data;
+            rows = d.rows;
+            cols = d.cols;
+        } else {
+            data = Array(rows).fill(0).map(() => Array(cols).fill(''));
+        }
+    }
+    function saveTable() {
+        localStorage.setItem(LS_KEY, JSON.stringify({rows, cols, data}));
+    }
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, ch =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+    }
+    function render() {
+        const table = document.getElementById('sheet');
+        let html = '';
+        for (let r = 0; r < rows; ++r) {
+            html += '<tr>';
+            for (let c = 0; c < cols; ++c) {
+                let value = data[r] && data[r][c] ? data[r][c] : '';
+                html += `<td data-r="${r}" data-c="${c}">${value ? escapeHtml(value) : ''}</td>`;
+            }
+            html += '</tr>';
+        }
+        table.innerHTML = html;
+
+        Array.from(table.getElementsByTagName('td')).forEach(td => {
+            if (isMobile) {
+                td.ontouchstart = (e) => { e.preventDefault(); editCell(td); };
+            } else {
+                td.ondblclick = () => editCell(td);
+            }
+        });
+    }
+    function editCell(td) {
+        const r = +td.dataset.r, c = +td.dataset.c;
+        if (td.querySelector('input')) return;
+        let value = data[r][c] || '';
+        td.innerHTML = `<input type="text" value="${escapeHtml(value)}"
+      onblur="saveCell(this,${r},${c})"
+      onkeydown="if(event.key==='Enter') this.blur();"
+      maxlength="100"
+      autocapitalize="off" autocomplete="off" spellcheck="false"
+    >`;
+        let inp = td.querySelector('input');
+        setTimeout(() => { inp.focus(); inp.select(); }, 10);
+    }
+    function saveCell(input, r, c) {
+        let value = input.value;
+        data[r][c] = value;
+        saveTable();
+        render();
+    }
+    function addRow() {
+        data.push(Array(cols).fill(''));
+        rows++;
+        saveTable();
+        render();
+    }
+    function removeRow() {
+        if (rows === 1) return alert('Последнюю строку удалить нельзя!');
+        let lastRow = data[rows-1];
+        if (lastRow.some(v => v)) {
+            if (!confirm('В удаляемой строке есть данные. Удалить?')) return;
+        }
+        data.pop();
+        rows--;
+        saveTable();
+        render();
+    }
+    function addCol() {
+        data.forEach(row => row.push(''));
+        cols++;
+        saveTable();
+        render();
+    }
+    function removeCol() {
+        if (cols === 1) return alert('Последний столбец удалить нельзя!');
+        let hasData = data.some(row => row[cols-1]);
+        if (hasData) {
+            if (!confirm('В удаляемом столбце есть данные. Удалить?')) return;
+        }
+        data.forEach(row => row.pop());
+        cols--;
+        saveTable();
+        render();
+    }
+
+    loadTable();
+    render();
+
+    window.addEventListener('beforeunload', saveTable);
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Оформление заказа</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Яндекс.Карты -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=958f8b11-0322-4f2e-9375-1408c66bfe9d&lang=ru_RU" type="text/javascript"></script>
+    <style>
+        body {
+            background: #fafbfc;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .wrapper {
+            max-width: 420px;
+            margin: 32px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px #0002;
+            padding: 24px 18px 32px 18px;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            margin: 0 0 18px 0;
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+        label {
+            font-size: 0.99rem;
+            margin-bottom: 2px;
+            color: #232323;
+            font-weight: 500;
+        }
+        input, textarea {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #bfc8d8;
+            font-size: 1rem;
+            box-sizing: border-box;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+        textarea {
+            min-height: 60px;
+            max-height: 120px;
+            resize: vertical;
+        }
+        #map {
+            width: 100%;
+            height: 160px;
+            border-radius: 8px;
+            background: #eaeaea;
+            margin-bottom: 6px;
+            min-height: 120px;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .msg {
+            font-size: 1rem;
+            margin-top: 10px;
+            margin-bottom: 8px;
+            text-align: center;
+            min-height: 1em;
+            white-space: pre-line;
+        }
+        .msg.error {
+            color: #c00;
+        }
+        .msg.success {
+            color: #2ba800;
+        }
+        button {
+            padding: 8px 24px;
+            border: none;
+            border-radius: 8px;
+            background: #e6e6f5;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 2px;
+            transition: background .18s;
+        }
+        button:hover {
+            background: #e0e0ff;
+        }
+        @media (max-width: 540px) {
+            .wrapper { max-width: 98vw; padding: 8vw 2vw 24px 2vw;}
+            #map { height: 110px; min-height: 75px;}
+            h1 { font-size: 1.3rem;}
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <h1>Оформление заказа</h1>
+    <form id="orderForm" autocomplete="off">
+        <label for="fio">ФИО</label>
+        <input type="text" id="fio" maxlength="60" autocomplete="off">
+
+        <label for="phone">Телефон</label>
+        <input type="tel" id="phone" maxlength="20" autocomplete="off">
+
+        <label for="email">Email</label>
+        <input type="email" id="email" maxlength="80" autocomplete="off">
+
+        <label for="map">Адрес доставки (укажите точку на карте)</label>
+        <div id="map"></div>
+
+        <label for="comment">Комментарий к заказу</label>
+        <textarea id="comment" maxlength="500" placeholder="Не более 500 символов"></textarea>
+
+        <button type="submit">Отправить</button>
+        <div id="formMsg" class="msg"></div>
+    </form>
+</div>
+<script>
+    // Объявление глобальных переменных для подсказки IDE
+    /* global ymaps */
+
+    // Получаем ссылки на элементы формы
+    const form = document.getElementById('orderForm');
+    const fio = document.getElementById('fio');
+    const phone = document.getElementById('phone');
+    const email = document.getElementById('email');
+    const comment = document.getElementById('comment');
+    const formMsg = document.getElementById('formMsg');
+
+    // Состояние карты и координаты точки
+    let map, placemark, deliveryCoords = null;
+
+    // Инициализация карты Яндекса
+    ymaps.ready(() => {
+        map = new ymaps.Map('map', {
+            center: [55.75, 37.61],
+            zoom: 10,
+            controls: []
+        });
+
+        // Установка или перемещение точки доставки по клику
+        map.events.add('click', function (e) {
+            const coords = e.get('coords');
+            if (!placemark) {
+                placemark = new ymaps.Placemark(coords, {
+                    hintContent: 'Место доставки',
+                    balloonContent: `Координаты: [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`
+                }, { draggable: true });
+                map.geoObjects.add(placemark);
+
+                // При перетаскивании точки обновляем координаты и балун
+                placemark.events.add('dragend', function () {
+                    deliveryCoords = placemark.geometry.getCoordinates();
+                    showBalloon(deliveryCoords);
+                });
+
+                // При удалении точки (закрытие балуна крестиком) очищаем координаты
+                placemark.events.add('balloonclose', function () {
+                    if (placemark && map) {
+                        map.geoObjects.remove(placemark);
+                        placemark = null;
+                        deliveryCoords = null;
+                    }
+                });
+
+            } else {
+                placemark.geometry.setCoordinates(coords);
+                placemark.balloon.close();
+            }
+            deliveryCoords = coords;
+            showBalloon(coords);
+        });
+    });
+
+    // Открытие балуна с координатами
+    function showBalloon(coords) {
+        if (!placemark) return;
+        placemark.properties.set('balloonContent', `Координаты: [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`);
+        placemark.balloon.open();
+    }
+
+    // Валидация и вывод ошибок/успеха
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        let errors = [];
+
+        // Проверка ФИО
+        if (!fio.value.trim()) errors.push("Не заполнено поле ФИО");
+        // Телефон — только числа
+        if (!phone.value.trim()) {
+            errors.push("Не заполнено поле телефон");
+        } else if (!/^\d+$/.test(phone.value.trim())) {
+            errors.push("Телефон должен содержать только числа");
+        }
+        // Email — обязательно, есть @
+        if (!email.value.trim()) {
+            errors.push("Не заполнено поле email");
+        } else if (!/@/.test(email.value)) {
+            errors.push("Email должен содержать символ @");
+        }
+        // Комментарий — не более 500 символов
+        if (comment.value.length > 500) {
+            errors.push("Комментарий не должен превышать 500 символов");
+        }
+        // Доставка — точка должна быть выбрана
+        if (!deliveryCoords) errors.push("Не отмечен адрес доставки");
+
+        // Выводим результат
+        if (errors.length === 0) {
+            formMsg.textContent = "Заказ оформлен!";
+            formMsg.className = "msg success";
+            form.reset();
+            deliveryCoords = null;
+            // Удаляем пин с карты
+            if (placemark && map) {
+                map.geoObjects.remove(placemark);
+                placemark = null;
+            }
+        } else {
+            formMsg.textContent = errors.join('\n');
+            formMsg.className = "msg error";
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Калькулятор доставки</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        html, body { height: 100%; }
+        body { background: #fafbfc; font-family: Arial, sans-serif; margin: 0; min-height: 100vh; }
+        .container { max-width: 420px; margin: 40px auto; background: #fff; border-radius: 12px; padding: 28px 18px 24px 18px; box-shadow: 0 6px 30px #0001; }
+        h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 18px 0; text-align: center; }
+        select, input[type="number"], input[type="text"] { width: 100%; font-size: 1.1rem; padding: 9px; margin: 7px 0 15px 0; box-sizing: border-box; border-radius: 4px; border: 1px solid #999; transition: border-color .25s; }
+        select:focus, input:focus { border-color: #4776ff; outline: none;}
+        button { padding: 8px 32px; font-size: 1.15rem; border-radius: 7px; border: 1px solid #888; background: #eceefd; cursor: pointer; margin: 0 auto; display: block; transition: background .2s; }
+        button:hover { background: #dde0fa; }
+        .result { margin-top: 28px; font-size: 1.11rem; text-align: center; }
+        .result.error { color: #c00; }
+        @media (max-width: 480px) {
+            .container { max-width: 97vw; padding: 4vw;}
+            h1 { font-size: 1.2rem;}
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Калькулятор доставки</h1>
+    <form id="deliveryForm" autocomplete="off">
+        <select id="citySelect" required></select>
+        <input type="number" id="weightInput" placeholder="Вес, кг" min="1" required>
+        <button type="submit">Рассчитать</button>
+    </form>
+    <div id="resultBox" class="result"></div>
+</div>
+<script>
+
+    const PHP_API = '/practice/PHP_SQL/task3.php';
+
+    async function loadCities() {
+        const sel = document.getElementById('citySelect');
+        sel.innerHTML = '<option>Загрузка...</option>';
+        try {
+            const resp = await fetch(PHP_API + '?action=cities');
+            const cities = await resp.json();
+            sel.innerHTML = '';
+            for (let city of cities) {
+                let opt = document.createElement('option');
+                opt.value = city;
+                opt.textContent = city;
+                sel.appendChild(opt);
+            }
+            if (cities.includes('Москва')) sel.value = 'Москва';
+        } catch (e) {
+            sel.innerHTML = '<option>Ошибка загрузки</option>';
+        }
+    }
+    loadCities();
+
+    document.getElementById('deliveryForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const city = document.getElementById('citySelect').value;
+        const weight = document.getElementById('weightInput').value;
+        const box = document.getElementById('resultBox');
+        box.className = 'result';
+        box.textContent = 'Расчет...';
+
+        try {
+            const form = new FormData();
+            form.append('action', 'delivery');
+            form.append('city', city);
+            form.append('weight', weight);
+            const resp = await fetch(PHP_API, { method: 'POST', body: form });
+            const data = await resp.json();
+            if (data.status === 'OK') {
+                box.className = 'result';
+                box.textContent = data.message;
+            } else {
+                box.className = 'result error';
+                box.textContent = data.message || 'Ошибка!';
+            }
+        } catch (e) {
+            box.className = 'result error';
+            box.textContent = 'Ошибка соединения!';
+        }
+    });
+</script>
+</body>
+</html>

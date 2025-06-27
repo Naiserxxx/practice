@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Случайный цвет</title>
+  <style>
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: #fafbfc;
+      font-family: Arial, sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      min-height: 100vh;
+      min-width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 32px #0001;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-sizing: border-box;
+      padding: 32px 24px 32px 24px;
+      max-width: 98vw;
+      max-height: 98vh;
+      width: 100%;
+      height: 100%;
+    }
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+    }
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      z-index: 2;
+      background: #fff;
+    }
+    .form-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .form label {
+      font-size: 1rem;
+    }
+    .form input[type="number"] {
+      width: 90px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #bfc8d8;
+      font-size: 1rem;
+      text-align: center;
+    }
+    .form button {
+      margin-top: 8px;
+      padding: 8px 24px;
+      background: #e6e6f5;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .form button:disabled {
+      background: #d1d1d1;
+      cursor: not-allowed;
+    }
+    .form button:hover:enabled {
+      background: #e0e0ff;
+    }
+    .error {
+      color: #c00;
+      font-size: 0.95rem;
+      margin-left: 8px;
+    }
+    .main-zone {
+      flex: 1 1 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      min-width: 0;
+    }
+    .canvas-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .square {
+      display: block;
+      background: #e2f1fa;
+      border: 2px solid #bfc8d8;
+      border-radius: 16px;
+      box-sizing: border-box;
+      aspect-ratio: 1/1;
+      transition: background 0.2s;
+      min-width: 0;
+      min-height: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Случайный цвет</h1>
+  <form class="form" id="mainForm" onsubmit="return false;">
+    <div class="form-row">
+      <label for="width">Ширина:</label>
+      <input id="width" type="number" min="1" max="1000" value="100">
+      <span id="width-error" class="error"></span>
+    </div>
+    <div class="form-row">
+      <label for="height">Высота:</label>
+      <input id="height" type="number" min="1" max="1000" value="100">
+      <span id="height-error" class="error"></span>
+    </div>
+    <button id="colorBtn">Случайный цвет</button>
+  </form>
+  <div class="main-zone">
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <div id="square" class="square"></div>
+    </div>
+  </div>
+</div>
+<script>
+  // DOM-элементы
+  const widthInput = document.getElementById('width');
+  const heightInput = document.getElementById('height');
+  const widthError = document.getElementById('width-error');
+  const heightError = document.getElementById('height-error');
+  const square = document.getElementById('square');
+  const colorBtn = document.getElementById('colorBtn');
+  const canvasWrapper = document.getElementById('canvasWrapper');
+
+  let lastWidth = 100;
+  let lastHeight = 100;
+
+  // Валидация полей
+  function validateInput(input, errorElem) {
+    const val = Number(input.value);
+    if (!val || val < 1 || val > 1000) {
+      errorElem.textContent = "от 1 до 1000";
+      return false;
+    } else {
+      errorElem.textContent = "";
+      return true;
+    }
+  }
+
+  // Отрисовка и масштабирование
+  function resizeSquare() {
+    const widthValid = validateInput(widthInput, widthError);
+    const heightValid = validateInput(heightInput, heightError);
+    colorBtn.disabled = !(widthValid && heightValid);
+
+    let w = Number(widthInput.value);
+    let h = Number(heightInput.value);
+
+    // Сохраняем последние валидные значения
+    if (widthValid && heightValid && w <= 1000 && h <= 1000) {
+      lastWidth = w;
+      lastHeight = h;
+    } else {
+      w = lastWidth;
+      h = lastHeight;
+    }
+
+    // Размеры области
+    let wrapperW = canvasWrapper.clientWidth;
+    let wrapperH = canvasWrapper.clientHeight;
+
+    if (w === h) {
+      // Квадрат: минимальная сторона области и максимальный заданный размер
+      let side = Math.min(wrapperW, wrapperH, w);
+      square.style.width = side + "px";
+      square.style.height = side + "px";
+      square.style.aspectRatio = "1 / 1";
+    } else {
+      // Прямоугольник: масштабируем по обеим осям
+      let scale = Math.min(wrapperW / w, wrapperH / h, 1);
+      square.style.width = (w * scale) + "px";
+      square.style.height = (h * scale) + "px";
+      square.style.aspectRatio = "";
+    }
+  }
+
+  // Случайный цвет
+  function randomColor() {
+    const r = Math.floor(Math.random() * 180) + 40;
+    const g = Math.floor(Math.random() * 180) + 40;
+    const b = Math.floor(Math.random() * 180) + 40;
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // События
+  widthInput.addEventListener('input', resizeSquare);
+  heightInput.addEventListener('input', resizeSquare);
+
+  colorBtn.addEventListener('click', () => {
+    const widthValid = validateInput(widthInput, widthError);
+    const heightValid = validateInput(heightInput, heightError);
+    if (widthValid && heightValid) {
+      square.style.background = randomColor();
+    }
+  });
+
+  window.addEventListener('resize', resizeSquare);
+  window.addEventListener('DOMContentLoaded', resizeSquare);
+</script>
+</body>
+</html>
